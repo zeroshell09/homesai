@@ -25,10 +25,18 @@ class IoTDevice(ABC):
     @abstractmethod
     def reset(self):
         pass
+    
+    @abstractmethod
+    def get_consumption_map(self):
+        pass
+    
+    @abstractmethod
+    def do_action(self,actionType):
+        pass
+        
     def __repr__(self):
         return self.name
     
-
 class Action:
     
     def __init__(self,label,func):
@@ -67,46 +75,83 @@ class FakeLight(IoTDevice):
     def reset(self):
         self.turn_off()
         
+    def get_consumption_map(self):
+        possible = self._settings["consumption"]
+        effective = possible if self.get_state() == 1 else  0
+        
+        return {
+            "current" :  effective,
+            "possible": possible,
+            "ratio": effective/possible
+        }
+        
+    def do_action(self,actionType):
+        
+        if actionType == 1 : 
+            self.turn_on()
+        
+        elif actionType == 0:
+            self.turn_off()
+            
 class HomeBuilder:
     
     class InteractiveHome:
         
-        def __init__(self,devices,name) :
+        def __init__(self,devices,subjects, name) :
             self.name = name
-            self._devices = devices
+            self._devices = {device.name: device for device in devices}
+            self._subjects = subjects
         
         def interact(self,action):
             action.run(self)
             
         def get_state(self):
-            states = "-".join([str(device.get_state()) for device in self._devices])
+            states = "-".join([str(device.get_state()) for device in self._devices.values()])
             return states
         
         def get_possible_actions(self):
             actions = [] 
-            for device in self._devices:
+            for device in self._devices.values():
                 actions.extend(device.get_possible_actions())
                 
             return actions
         
         def reset(self):
-            for device in self._devices:
+            for device in self._devices.values():
                 device.reset()
 
         def display(self):
             
             logger.debug(f"Devices states : {self.get_state()}")
             logger.debug(f"Possible acions : {self.get_possible_actions()}")
-    
+            logger.debug(f"Consumption: {self.get_consumption_ratio() * 100}%")
+            logger.debug(f"Comfort: {self.get_comfort()}")
+
+        def get_consumption_ratio(self):
+            return sum([device.get_consumption_map()["ratio"] for device in self._devices.values()]) / len(self._devices)
+            
+        def do_action(self,device_name,action_type):
+            device =  self._devices[device_name]
+            device.do_action(action_type)
+            
+        def get_comfort(self):
+            return sum(map(lambda subject : subject.get_comfort(self),self._subjects))
+        
     def __init__(self,name):
         self.name = name
         self._devices = []
-    
+        self._subjects = []
+
     def with_device(self,device:IoTDevice):
         assert device.name
         logger.debug(f"Adding device {device}")
         self._devices.append(device)
         return self
+    
+    def with_subject(self,subject):
+        logger.debug(f"Adding Subject {subject}")
+        self._subjects.append(subject)
+        return self
         
     def build(self) -> InteractiveHome:
-        return HomeBuilder.InteractiveHome(self._devices,self.name)
+        return HomeBuilder.InteractiveHome(self._devices, self._subjects, self.name)
