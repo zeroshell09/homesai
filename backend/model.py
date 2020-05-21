@@ -21,7 +21,13 @@ class IoTDevice(ABC):
     
     def set_state(self,state_value):
         self._state = state_value
-        
+    
+    @abstractmethod
+    def reset(self):
+        pass
+    def __repr__(self):
+        return self.name
+    
 
 class Action:
     
@@ -58,32 +64,49 @@ class FakeLight(IoTDevice):
         logger.debug(f"Turning Off light: {self.name}")
         self.set_state(0)
         
-class InteractiveHome:
+    def reset(self):
+        self.turn_off()
+        
+class HomeBuilder:
+    
+    class InteractiveHome:
+        
+        def __init__(self,devices,name) :
+            self.name = name
+            self._devices = devices
+        
+        def interact(self,action):
+            action.run(self)
+            
+        def get_state(self):
+            states = "-".join([str(device.get_state()) for device in self._devices])
+            return states
+        
+        def get_possible_actions(self):
+            actions = [] 
+            for device in self._devices:
+                actions.extend(device.get_possible_actions())
+                
+            return actions
+        
+        def reset(self):
+            for device in self._devices:
+                device.reset()
+
+        def display(self):
+            
+            logger.debug(f"Devices states : {self.get_state()}")
+            logger.debug(f"Possible acions : {self.get_possible_actions()}")
     
     def __init__(self,name):
-        self._devices = []
-        self._state = None
         self.name = name
+        self._devices = []
     
-    def add_device(self,device:IoTDevice):
+    def with_device(self,device:IoTDevice):
         assert device.name
+        logger.debug(f"Adding device {device}")
         self._devices.append(device)
+        return self
         
-    def get_state(self):
-        return "-".join([str(device.get_state()) for device in self._devices])
-    
-    def get_possible_actions(self):
-        
-        actions = [] 
-        for device in self._devices:
-            actions.extend(device.get_possible_actions())
-            
-        return actions
-    
-    def display(self):
-        
-        logger.debug(f"Devices states : {self.get_state()}")
-        logger.debug(f"Possible acions : {self.get_possible_actions()}")
-        
-    def interact(self,action):
-        action.run(self)
+    def build(self) -> InteractiveHome:
+        return HomeBuilder.InteractiveHome(self._devices,self.name)

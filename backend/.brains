@@ -1,1 +1,1 @@
-{"brains": [{"name": "sweethome", "default": true}]}
+{"brains": [{"name": "sweethome", "default": false}, {"name": "home", "default": true}]}
