@@ -1,9 +1,11 @@
 import bonsai_ai as bsa
 
 
-
 class InteractiveHomeSimulation:
+
     pass
+    
+    
 
 class InteractiveHomeBridge(bsa.Simulator):
     
