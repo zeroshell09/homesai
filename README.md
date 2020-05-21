@@ -1,0 +1,2 @@
+# homesai
+Bonsai project exploration 
